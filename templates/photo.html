@@ -1,71 +1,56 @@
 {% extends "base.html" %}
-{% set heading = photo.title or photo.place %}
-{% block title %}{{ heading ~ ' · ' if heading }}{{ site.title }}{% endblock %}
+{% set number = t.number.replace('{n}', photo.n | string) %}
+{% block title %}{{ number }} · {{ site.title }}{% endblock %}
 {% block head %}
-  <meta property="og:type" content="article">
-  <meta property="og:title" content="{{ heading or site.title }}">
-  {% if photo.description %}
-  <meta property="og:description" content="{{ photo.description }}">
-  {% endif %}
-  {% if site.base_url %}
-  <meta property="og:image" content="{{ site.base_url }}/{{ photo.image }}">
-  <meta property="og:url" content="{{ site.base_url }}/p/{{ photo.slug }}/">
-  {% endif %}
-  <link rel="preload" as="image" href="{{ root }}{{ photo.image }}" fetchpriority="high">
+  <link rel="prefetch" href="{{ root }}{{ photo.image }}" as="fetch" crossorigin="anonymous">
 {% endblock %}
 {% block bodyclass %}photo-page{% endblock %}
 {% block body %}
 <nav class="topbar">
   <a class="back" href="{{ root }}">&larr; {{ t.back }}</a>
+  <span class="counter">{{ number }} <span class="of">/ {{ total }}</span></span>
 </nav>
 
-<main>
-  <figure class="photo">
-    <a class="photo-link" href="{{ root }}{{ photo.image }}" title="{{ t.open_full }}">
-      <img src="{{ root }}{{ photo.image }}"
-           width="{{ photo.image_width }}" height="{{ photo.image_height }}"
-           alt="{{ heading or '' }}"
-           decoding="async" fetchpriority="high">
+<main data-id="{{ photo.id }}" data-n="{{ photo.n }}" data-total="{{ total }}"
+      data-ids="{{ ids | join(',') }}" data-meta="{{ photo.meta }}"
+      data-image="{{ root }}{{ photo.image }}">
+
+  <figure class="photo state-unlocked" hidden>
+    <a class="photo-link" href="#" title="{{ t.open_full }}">
+      <img alt="" decoding="async">
     </a>
     <figcaption>
-      {% if photo.title %}
-      <h1>{{ photo.title }}</h1>
-      {% endif %}
-      {% if photo.description %}
-      <p class="description">{{ photo.description }}</p>
-      {% endif %}
-      {% if photo.place or photo.date %}
-      <p class="meta">
-        {% if photo.place %}
-        <span class="place">
-          {% if photo.lat is not none and photo.lon is not none %}
-          <a href="https://www.openstreetmap.org/?mlat={{ photo.lat }}&amp;mlon={{ photo.lon }}#map=14/{{ photo.lat }}/{{ photo.lon }}" rel="noopener">{{ photo.place }}</a>
-          {% else %}
-          {{ photo.place }}
-          {% endif %}
-        </span>
-        {% endif %}
-        {% if photo.place and photo.date %}
-        <span class="sep" aria-hidden="true">·</span>
-        {% endif %}
-        {% if photo.date %}
-        <time datetime="{{ photo.date }}">{{ photo.date | fmtdate }}</time>
-        {% endif %}
+      <h1 hidden></h1>
+      <p class="description" hidden></p>
+      <p class="meta" hidden>
+        <span class="place" hidden></span>
+        <span class="sep" aria-hidden="true" hidden>·</span>
+        <time hidden></time>
       </p>
-      {% endif %}
     </figcaption>
   </figure>
+
+  <div class="locked-card state-locked" hidden>
+    {% include "_lock.svg" %}
+    <p class="tile-num">{{ number }}</p>
+    <h1>{{ t.still_locked }}</h1>
+    <p class="hint">{{ t.tap_hint }}</p>
+    <p class="wrong-card" hidden>{{ t.wrong_card }}</p>
+    <p class="no-crypto" hidden>{{ t.no_crypto }}</p>
+  </div>
+
+  <noscript><p class="notice">{{ t.no_js }}</p></noscript>
 </main>
 
 {% if prev or next %}
 <nav class="pager">
   {% if prev %}
-  <a href="../{{ prev.slug }}/" rel="prev"><span class="dir">&larr; {{ t.prev }}</span><span class="label">{{ prev.title or prev.place_short or prev.place or '' }}</span></a>
+  <a href="../{{ prev.id }}/" rel="prev"><span class="dir">&larr; {{ t.prev }}</span><span class="label">{{ t.number.replace('{n}', prev.n | string) }}</span></a>
   {% else %}
   <span></span>
   {% endif %}
   {% if next %}
-  <a href="../{{ next.slug }}/" rel="next" class="next"><span class="dir">{{ t.next }} &rarr;</span><span class="label">{{ next.title or next.place_short or next.place or '' }}</span></a>
+  <a href="../{{ next.id }}/" rel="next" class="next"><span class="dir">{{ t.next }} &rarr;</span><span class="label">{{ t.number.replace('{n}', next.n | string) }}</span></a>
   {% endif %}
 </nav>
 {% endif %}

@@ -6,30 +6,33 @@
   {% if site.subtitle %}
   <p class="subtitle">{{ site.subtitle }}</p>
   {% endif %}
+  {% if tiles %}
+  <div class="progress" data-progress>
+    <span class="progress-text">{{ t.progress.replace('{n}', '0').replace('{total}', total | string) }}</span>
+    <span class="progress-bar" aria-hidden="true"><span class="progress-fill"></span></span>
+  </div>
+  {% endif %}
 </header>
 
 <main>
-  {% if photos %}
+  {% if tiles %}
   <ul class="grid">
-    {% for p in photos %}
-    <li class="tile">
-      <a href="p/{{ p.slug }}/">
-        <img src="{{ p.thumb }}"
-             width="{{ p.thumb_width }}" height="{{ p.thumb_height }}"
-             alt="{{ p.title or p.place or '' }}"
-             loading="lazy" decoding="async">
+    {% for p in tiles %}
+    <li class="tile" data-id="{{ p.id }}" data-meta="{{ p.meta }}" data-thumb="{{ p.thumb }}">
+      <a href="p/{{ p.id }}/">
+        <span class="tile-locked" aria-hidden="true">
+          {% include "_lock.svg" %}
+          <span class="tile-num">{{ t.number.replace('{n}', p.n | string) }}</span>
+        </span>
         <span class="tile-caption">
-          {% if p.title or p.place %}
-          <span class="tile-title">{{ p.title or p.place_short or p.place }}</span>
-          {% endif %}
-          {% if p.date %}
-          <time datetime="{{ p.date }}">{{ p.date | fmtdate }}</time>
-          {% endif %}
+          <span class="tile-title">{{ t.locked }}</span>
+          <time hidden></time>
         </span>
       </a>
     </li>
     {% endfor %}
   </ul>
+  <noscript><p class="notice">{{ t.no_js }}</p></noscript>
   {% else %}
   <div class="empty">
     <p>{{ t.empty }}</p>
@@ -38,9 +41,9 @@
   {% endif %}
 </main>
 
-{% if photos %}
+{% if tiles %}
 <footer class="site-footer">
-  <p>{{ photos | length }} {{ t.photo if photos | length == 1 else t.photos }}</p>
+  <p>{{ total }} {{ t.photo if total == 1 else t.photos }}</p>
 </footer>
 {% endif %}
 {% endblock %}

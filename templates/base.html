@@ -16,5 +16,7 @@
 </head>
 <body class="{% block bodyclass %}{% endblock %}">
 {% block body %}{% endblock %}
+<script type="application/json" id="i18n">{{ t | tojson }}</script>
+<script src="{{ root }}app.js" defer></script>
 </body>
 </html>

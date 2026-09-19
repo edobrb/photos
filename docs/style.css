@@ -153,7 +153,13 @@ main { flex: 1; }
   width: 100%;
   padding: 20px var(--gutter);
   font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
 }
+.counter { color: var(--muted); font-family: var(--serif); font-variant-numeric: tabular-nums; }
+.counter .of { opacity: 0.7; }
 
 .back, .pager a {
   color: var(--muted);
@@ -240,6 +246,100 @@ main { flex: 1; }
   .photo img { border-radius: 0; box-shadow: none; max-height: none; }
   .photo figcaption { padding: 0 var(--gutter); }
 }
+
+/* ---------------- the game: locked / unlocked ---------------- */
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.progress-bar {
+  flex: 0 1 200px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--rule);
+  overflow: hidden;
+}
+.progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 600ms cubic-bezier(.2,.7,.2,1);
+}
+.progress.is-complete .progress-text { color: var(--accent); font-family: var(--serif); font-style: italic; font-size: 1rem; }
+
+.lock { width: 1.6rem; height: 1.6rem; opacity: 0.55; }
+
+.tile-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  border: 1px dashed var(--rule);
+  background: var(--bg-elev);
+  color: var(--muted);
+  transition: border-color 200ms ease, transform 220ms ease;
+}
+.tile-num {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+.tile:not(.is-unlocked) .tile-title { color: var(--muted); font-style: italic; font-family: var(--sans); font-size: 0.9rem; }
+@media (hover: hover) {
+  .tile a:hover .tile-locked { border-color: var(--muted); transform: translateY(-3px); }
+}
+
+.locked-card {
+  max-width: 30rem;
+  margin: 10vh auto 6vh;
+  padding: 3rem var(--gutter);
+  text-align: center;
+  border: 1px dashed var(--rule);
+  border-radius: 14px;
+  color: var(--muted);
+}
+.locked-card .lock { width: 2.5rem; height: 2.5rem; }
+.locked-card .tile-num { margin-top: 0.75rem; }
+.locked-card h1 { color: var(--fg); font-size: 1.6rem; margin: 0.4rem 0 0.6rem; }
+.locked-card p { margin: 0.35rem 0; }
+.locked-card .wrong-card { color: var(--accent); margin-top: 1rem; }
+.locked-card .no-crypto { margin-top: 1rem; font-size: 0.9rem; }
+
+.notice { text-align: center; color: var(--muted); padding: 2rem var(--gutter); }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+  transition: opacity 300ms ease, transform 300ms ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.toast strong { font-weight: 600; }
+.toast span { opacity: 0.75; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---------------- 404 ---------------- */
 

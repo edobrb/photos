@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# plaintext + encryption keys — private, back it up outside git
+data/

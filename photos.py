@@ -5,6 +5,7 @@
 #   "pillow>=10.0",
 #   "pillow-heif>=0.16",
 #   "jinja2>=3.1",
+#   "cryptography>=42",
 # ]
 # ///
 """
@@ -13,8 +14,13 @@ photos.py — manage the photo gallery.
   ./photos.py add IMG_1234.HEIC        ingest a photo (EXIF → date/place), rebuild site
   ./photos.py build                    regenerate docs/ from data/photos.json + templates/
   ./photos.py list                     show every photo with its NFC URL
-  ./photos.py remove <slug>            delete a photo and rebuild
+  ./photos.py remove <id>              delete a photo and rebuild
   ./photos.py serve                    preview docs/ at http://127.0.0.1:8000/
+
+Every photo is encrypted (AES-GCM) with its own random key. The key travels
+only in the NFC URL fragment (#k=…); the browser decrypts and remembers it in
+localStorage. data/photos.json holds the plaintext and the keys — it is NOT
+committed to git. Back it up.
 
 Run with `uv run photos.py ...` (or `./photos.py ...`); uv installs the
 dependencies on first use.  Without uv: `pip install -r requirements.txt`
@@ -23,8 +29,12 @@ and run with python3.11+.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import io
 import json
 import re
+import secrets
 import shutil
 import sys
 import unicodedata
@@ -35,6 +45,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from PIL import ExifTags, Image, ImageOps
 
@@ -53,6 +64,13 @@ STATIC = ROOT / "static"
 DOCS = ROOT / "docs"
 IMG_DIR = DOCS / "img"
 PAGES_DIR = DOCS / "p"
+
+ID_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"  # no 0/o/1/l/i ambiguity
+ID_LENGTH = 6
+
+# fields that are encrypted into the page; nothing else about a photo is public
+META_FIELDS = ("title", "description", "date", "place", "place_short", "lat", "lon",
+               "image_width", "image_height", "thumb_width", "thumb_height")
 
 SITE_DEFAULTS = {
     "title": "Our Photos",
@@ -85,6 +103,17 @@ STRINGS = {
         "photo": "photo",
         "not_found": "This photo isn't here.",
         "not_found_hint": "Maybe it moved. Have a look at the gallery instead.",
+        "locked": "Locked",
+        "still_locked": "Still locked",
+        "tap_hint": "Find its card and hold it to your phone.",
+        "wrong_card": "This card doesn't open this photo.",
+        "progress": "{n} of {total} unlocked",
+        "unlocked": "Unlocked",
+        "all_found": "You found them all.",
+        "number": "№ {n}",
+        "of": "{n} of {total}",
+        "no_js": "JavaScript is needed to unlock the photos.",
+        "no_crypto": "This browser can't unlock photos here (a secure HTTPS connection is needed).",
     },
     "it": {
         "back": "Tutte le foto",
@@ -97,6 +126,17 @@ STRINGS = {
         "photo": "foto",
         "not_found": "Questa foto non è qui.",
         "not_found_hint": "Forse è stata spostata. Dai un'occhiata alla galleria.",
+        "locked": "Bloccata",
+        "still_locked": "Ancora bloccata",
+        "tap_hint": "Trova la sua carta e avvicinala al telefono.",
+        "wrong_card": "Questa carta non apre questa foto.",
+        "progress": "{n} di {total} sbloccate",
+        "unlocked": "Sbloccata",
+        "all_found": "Le hai trovate tutte.",
+        "number": "№ {n}",
+        "of": "{n} di {total}",
+        "no_js": "Serve JavaScript per sbloccare le foto.",
+        "no_crypto": "Questo browser non può sbloccare le foto qui (serve una connessione HTTPS).",
     },
 }
 
@@ -141,16 +181,14 @@ def save_photos(photos: list[dict]) -> None:
 
 def slugify(text: str) -> str:
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
-    text = re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-").lower()
-    return text
+    return re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-").lower()
 
 
-def unique_slug(base: str, taken: set[str]) -> str:
-    slug, n = base, 2
-    while slug in taken:
-        slug = f"{base}-{n}"
-        n += 1
-    return slug
+def new_id(taken: set[str]) -> str:
+    while True:
+        candidate = "".join(secrets.choice(ID_ALPHABET) for _ in range(ID_LENGTH))
+        if candidate not in taken:
+            return candidate
 
 
 def format_date(iso: str, lang: str) -> str:
@@ -164,9 +202,9 @@ def sort_photos(photos: list[dict], order: str) -> list[dict]:
     return sorted(photos, key=key, reverse=(order != "oldest"))
 
 
-def photo_url(site: dict, slug: str) -> str:
+def photo_url(site: dict, photo: dict) -> str:
     base = site["base_url"] or f"https://<user>.github.io{site['base_path'].rstrip('/')}"
-    return f"{base}/p/{slug}/"
+    return f"{base}/p/{photo['id']}/#k={photo['key']}"
 
 
 def ask(label: str, default: str | None = None, *, skip: bool = False) -> str:
@@ -179,6 +217,30 @@ def ask(label: str, default: str | None = None, *, skip: bool = False) -> str:
     except EOFError:
         value = ""
     return value or (default or "")
+
+
+# ----------------------------------------------------------------------------
+# crypto — AES-128-GCM, key and blobs base64url encoded
+# ----------------------------------------------------------------------------
+
+def b64u(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def b64u_decode(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def new_key() -> str:
+    return b64u(secrets.token_bytes(16))
+
+
+def encrypt(key_b64u: str, data: bytes) -> bytes:
+    """nonce(12) || ciphertext+tag.  The nonce is derived from key+plaintext so
+    that rebuilding the site with unchanged content yields identical bytes."""
+    key = b64u_decode(key_b64u)
+    nonce = hashlib.sha256(key + data).digest()[:12]
+    return nonce + AESGCM(key).encrypt(nonce, data, None)
 
 
 # ----------------------------------------------------------------------------
@@ -255,22 +317,25 @@ def reverse_geocode(lat: float, lon: float, lang: str) -> tuple[str, str] | None
 # images
 # ----------------------------------------------------------------------------
 
-def make_derivatives(img: Image.Image, slug: str, site: dict) -> dict:
-    """Write docs/img/<slug>.jpg and <slug>-thumb.jpg (EXIF stripped, ICC kept)."""
+def make_derivatives(img: Image.Image, photo_id: str, key: str, site: dict) -> dict:
+    """Write docs/img/<id>.enc and <id>-t.enc: resized JPEGs (EXIF stripped,
+    ICC kept, correctly rotated), encrypted with the photo's key."""
     icc = img.info.get("icc_profile")
     base = ImageOps.exif_transpose(img) or img
     if base.mode != "RGB":
         base = base.convert("RGB")
     IMG_DIR.mkdir(parents=True, exist_ok=True)
     out = {}
-    for name, px, filename in (("image", site["large_px"], f"{slug}.jpg"),
-                               ("thumb", site["thumb_px"], f"{slug}-thumb.jpg")):
+    for name, px, filename in (("image", site["large_px"], f"{photo_id}.enc"),
+                               ("thumb", site["thumb_px"], f"{photo_id}-t.enc")):
         im = base.copy()
         im.thumbnail((px, px), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
         save_kwargs = dict(quality=site["jpeg_quality"], optimize=True, progressive=True)
         if icc:
             save_kwargs["icc_profile"] = icc
-        im.save(IMG_DIR / filename, "JPEG", **save_kwargs)
+        im.save(buf, "JPEG", **save_kwargs)
+        (IMG_DIR / filename).write_bytes(encrypt(key, buf.getvalue()))
         out[name] = f"img/{filename}"
         out[f"{name}_width"], out[f"{name}_height"] = im.size
     return out
@@ -282,9 +347,26 @@ def make_derivatives(img: Image.Image, slug: str, site: dict) -> dict:
 
 def build(site: dict | None = None, photos: list[dict] | None = None) -> list[dict]:
     site = site or load_site()
-    photos = photos if photos is not None else load_photos()
+    if photos is None:
+        if not DATA_FILE.exists() and PAGES_DIR.exists() and any(PAGES_DIR.iterdir()):
+            die("data/photos.json is missing but docs/p/ has pages.\n"
+                "       Restore your data/ backup before building, or the pages would be wiped.")
+        photos = load_photos()
     ordered = sort_photos(photos, site["order"])
     t = STRINGS[site["lang"]]
+
+    # the public view of a photo: id, position, encrypted metadata, file paths
+    tiles = []
+    for i, photo in enumerate(ordered):
+        meta = {k: photo.get(k) for k in META_FIELDS}
+        blob = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        tiles.append({
+            "id": photo["id"],
+            "n": i + 1,
+            "meta": b64u(encrypt(photo["key"], blob)),
+            "image": photo["image"],
+            "thumb": photo["thumb"],
+        })
 
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATES)),
@@ -292,7 +374,6 @@ def build(site: dict | None = None, photos: list[dict] | None = None) -> list[di
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    env.filters["fmtdate"] = lambda iso: format_date(iso, site["lang"])
 
     DOCS.mkdir(parents=True, exist_ok=True)
     (DOCS / ".nojekyll").touch()
@@ -304,20 +385,21 @@ def build(site: dict | None = None, photos: list[dict] | None = None) -> list[di
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(env.get_template(template).render(site=site, t=t, **ctx), encoding="utf-8")
 
-    render("index.html", DOCS / "index.html", photos=ordered, root="")
+    total = len(tiles)
+    ids = [tile["id"] for tile in tiles]
+    render("index.html", DOCS / "index.html", tiles=tiles, total=total, root="")
     render("404.html", DOCS / "404.html", root=site["base_path"])
-
-    for i, photo in enumerate(ordered):
+    for i, tile in enumerate(tiles):
         render(
-            "photo.html", PAGES_DIR / photo["slug"] / "index.html",
-            photo=photo,
-            prev=ordered[i - 1] if i > 0 else None,
-            next=ordered[i + 1] if i + 1 < len(ordered) else None,
+            "photo.html", PAGES_DIR / tile["id"] / "index.html",
+            photo=tile, total=total, ids=ids,
+            prev=tiles[i - 1] if i > 0 else None,
+            next=tiles[i + 1] if i + 1 < total else None,
             root="../../",
         )
 
     # drop pages for photos that no longer exist
-    keep = {p["slug"] for p in photos}
+    keep = set(ids)
     if PAGES_DIR.exists():
         for d in PAGES_DIR.iterdir():
             if d.is_dir() and d.name not in keep:
@@ -378,7 +460,6 @@ def cmd_add(args) -> None:
         else:
             print("  no GPS in EXIF")
         place = ask("Place", suggestion, skip=args.yes)
-
     place_short = locality or (place.split(",")[0].strip() if place else "")
 
     # --- title / description --------------------------------------------------
@@ -386,26 +467,26 @@ def cmd_add(args) -> None:
     description = (args.description if args.description is not None
                    else ask("Description", skip=args.yes))
 
-    # --- slug -----------------------------------------------------------------
-    taken = {p["slug"] for p in photos}
-    if args.slug:
-        slug = slugify(args.slug)
-        if not slug:
-            die("--slug is empty after normalisation")
-        if slug in taken:
-            die(f"slug already exists: {slug}")
+    # --- id + key -------------------------------------------------------------
+    taken = {p["id"] for p in photos}
+    if args.id:
+        photo_id = slugify(args.id)
+        if not photo_id:
+            die("--id is empty after normalisation")
+        if photo_id in taken:
+            die(f"id already exists: {photo_id}")
     else:
-        stem = slugify(title) or slugify(locality or place or "") or slugify(src.stem) or "photo"
-        base_slug = f"{stem}-{date:%Y-%m-%d}" if not slugify(title) else stem
-        slug = unique_slug(base_slug, taken)
+        photo_id = new_id(taken)
+    key = new_key()
 
     # --- write ----------------------------------------------------------------
-    print(f"  resizing → {site['large_px']}px / {site['thumb_px']}px …")
-    derived = make_derivatives(img, slug, site)
+    print(f"  resizing → {site['large_px']}px / {site['thumb_px']}px, encrypting …")
+    derived = make_derivatives(img, photo_id, key, site)
     img.close()
 
     entry = {
-        "slug": slug,
+        "id": photo_id,
+        "key": key,
         "title": title,
         "description": description,
         "date": date.replace(microsecond=0).isoformat(),
@@ -422,16 +503,18 @@ def cmd_add(args) -> None:
     build(site, photos)
 
     print()
-    print(f"Added  {slug}")
+    print(f"Added  {photo_id}")
     print(f"  title:       {title or '—'}")
     print(f"  place:       {place or '—'}")
     print(f"  date:        {format_date(entry['date'], site['lang'])}")
-    print(f"  image:       docs/{derived['image']} ({derived['image_width']}×{derived['image_height']})")
-    print(f"  page:        docs/p/{slug}/index.html")
+    print(f"  image:       docs/{derived['image']} ({derived['image_width']}×{derived['image_height']}, encrypted)")
+    print(f"  page:        docs/p/{photo_id}/index.html")
     print()
-    print(f"NFC URL →  {photo_url(site, slug)}")
+    print(f"NFC URL →  {photo_url(site, entry)}")
     if not site["base_url"]:
         print("  (set base_url in site.json to get the real URL)")
+    print()
+    print("Remember: data/photos.json holds the keys and is not in git — keep a backup.")
 
 
 def cmd_build(_args) -> None:
@@ -445,27 +528,27 @@ def cmd_list(_args) -> None:
     if not photos:
         print("No photos yet.")
         return
-    w = max(len(p["slug"]) for p in photos)
-    for p in photos:
+    for i, p in enumerate(photos, 1):
         date = format_date(p["date"], site["lang"]) if p.get("date") else "—"
-        print(f"{p['slug']:<{w}}  {date:<18}  {p.get('place') or '—'}")
-        print(f"{'':<{w}}  {photo_url(site, p['slug'])}")
+        label = p.get("title") or p.get("place_short") or "—"
+        print(f"№ {i:<3} {p['id']}  {date:<18} {label}")
+        print(f"      {photo_url(site, p)}")
 
 
 def cmd_remove(args) -> None:
     photos = load_photos()
-    match = [p for p in photos if p["slug"] == args.slug]
+    match = [p for p in photos if p["id"] == args.id]
     if not match:
-        die(f"no photo with slug {args.slug!r}")
+        die(f"no photo with id {args.id!r}")
     photo = match[0]
     for key in ("image", "thumb"):
         f = DOCS / photo[key]
         if f.exists():
             f.unlink()
-    photos = [p for p in photos if p["slug"] != args.slug]
+    photos = [p for p in photos if p["id"] != args.id]
     save_photos(photos)
     build(photos=photos)
-    print(f"Removed {args.slug}")
+    print(f"Removed {args.id}")
 
 
 def cmd_serve(args) -> None:
@@ -493,7 +576,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--description", help="your text for this photo")
     p.add_argument("--place", help="override the place name (skips geocoding)")
     p.add_argument("--date", help="override the date, ISO format")
-    p.add_argument("--slug", help="URL slug (default: from title, or place + date)")
+    p.add_argument("--id", help="URL id (default: random, so the URL reveals nothing)")
     p.add_argument("--no-coords", action="store_true", help="do not store GPS coordinates")
     p.add_argument("-y", "--yes", action="store_true", help="never prompt; accept defaults")
     p.set_defaults(func=cmd_add)
@@ -501,11 +584,11 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("build", help="regenerate docs/ from data + templates")
     p.set_defaults(func=cmd_build)
 
-    p = sub.add_parser("list", help="list photos and their URLs")
+    p = sub.add_parser("list", help="list photos and their NFC URLs")
     p.set_defaults(func=cmd_list)
 
-    p = sub.add_parser("remove", help="remove a photo by slug")
-    p.add_argument("slug")
+    p = sub.add_parser("remove", help="remove a photo by id")
+    p.add_argument("id")
     p.set_defaults(func=cmd_remove)
 
     p = sub.add_parser("serve", help="preview the site locally")

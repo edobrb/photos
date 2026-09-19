@@ -1,22 +1,52 @@
 # photos
 
-A small static photo gallery for GitHub Pages. Each photo has its own page
-(high-resolution image, a short text, the place and the date taken from EXIF)
-whose URL is written on an NFC tag glued to the printed card.
+A small static photo gallery for GitHub Pages, played as a collecting game.
+Every photo starts **locked**: the gallery shows numbered blank cards. Each
+printed card carries an NFC tag with that photo's URL; tapping it opens the
+photo, unlocks it, and the browser remembers it from then on. Each photo page
+shows the high-resolution image, a short text, and the place and date taken
+from EXIF.
 
 ```
 photos.py            the tool: add / build / list / remove / serve
 site.json            title, subtitle, base URL, language, sizes
-data/photos.json     the manifest — the single source of truth
+data/photos.json     the manifest: plaintext + keys — PRIVATE, not in git
 templates/           Jinja2 templates (gallery, photo page, 404)
-static/              style.css + favicon, copied into docs/ on build
+static/              style.css, app.js, favicon — copied into docs/ on build
 docs/                the generated site — this is what GitHub Pages serves
 ```
+
+## How the lock works
+
+Each photo gets a random 128-bit key. The tool encrypts the image, the
+thumbnail and the metadata (title, text, place, date, coordinates) with
+AES-GCM and only the ciphertext goes into `docs/`. The key travels in the
+NFC URL fragment:
+
+```
+https://edobrb.github.io/photos/p/k7m2xq/#k=Xy9…22 chars…
+```
+
+The fragment never reaches the server. The page decrypts with WebCrypto,
+stores the key in `localStorage` (`photos.unlocked`), and strips it from the
+address bar. The gallery reads the same storage and shows a progress line,
+"3 of 12 unlocked". Everything public is opaque: random ids, blobs, a count.
+
+Consequences worth knowing:
+
+- Unlocks live in one browser on one device. A different phone starts over.
+- `docs/index.html#reset` locks everything again on that browser. Handy
+  for testing.
+- `data/photos.json` is the only plaintext copy and holds the keys. It is
+  git-ignored; **back it up** (iCloud, a private repo, anywhere private).
+  If it is ever lost, the URLs on the cards still contain the keys.
+- Someone who reads the repository sees only ciphertext.
 
 ## Setup
 
 The tool runs with [uv](https://docs.astral.sh/uv/); dependencies (Pillow,
-pillow-heif, Jinja2) are declared inline and installed on first run.
+pillow-heif, Jinja2, cryptography) are declared inline and installed on
+first run.
 
 ```sh
 uv run photos.py --help        # or simply: ./photos.py --help
@@ -38,8 +68,8 @@ OpenStreetMap to propose a place name, and then asks for the things it cannot
 guess: place (Enter accepts the suggestion), an optional title, and your
 description. It then
 
-- writes `docs/img/<slug>.jpg` (long edge 2560 px) and `<slug>-thumb.jpg`
-  (900 px), correctly rotated, **with all EXIF metadata stripped**;
+- resizes to 2560 px (long edge) plus a 900 px thumbnail, rotated correctly,
+  all EXIF removed, and writes them **encrypted** to `docs/img/<id>.enc`;
 - appends the entry to `data/photos.json`;
 - regenerates every page in `docs/`;
 - prints the URL to write on the NFC tag.
@@ -50,27 +80,26 @@ Every prompt has a flag, so this works non-interactively too:
 ./photos.py add IMG_1234.HEIC \
   --title "Christmas Eve in Florence" \
   --description "Cold hands, warm chestnuts." \
-  --place "Florence, Italy" --date 2025-12-24 --slug florence-xmas --yes
+  --place "Florence, Italy" --date 2025-12-24 --yes
 ```
 
-`--no-coords` keeps the place name but does not store the coordinates
-(which otherwise power the small map link under the photo).
-
-The slug becomes the URL: `<base_url>/p/<slug>/`. It defaults to the title,
-or to `<place>-<date>` when there is no title. Slugs never change once a tag
-is written, so pick them with care or pass `--slug`.
+`--no-coords` keeps the place name but drops the coordinates (which power
+the small map link under the photo). `--id` sets a custom URL id if you do
+not want a random one; ids never change once a tag is written.
 
 ## Other commands
 
 ```sh
-./photos.py list             # every photo with its NFC URL
-./photos.py build            # after editing templates/ or static/style.css
-./photos.py remove <slug>    # delete manifest entry, images and page
+./photos.py list             # every photo with its number and NFC URL
+./photos.py build            # after editing templates/ or static/
+./photos.py remove <id>      # delete manifest entry, files and page
 ./photos.py serve            # preview at http://127.0.0.1:8000/
 ```
 
 `data/photos.json` is plain JSON: fix a typo in a description there and run
-`build`.
+`build`. The gallery order follows `order` in `site.json` (`newest` or
+`oldest` by date), which is also the numbering — a locked card's position
+between two unlocked ones is the only hint the game gives away.
 
 ## Publishing
 
@@ -79,24 +108,25 @@ is written, so pick them with care or pass `--slug`.
    *Deploy from a branch*, branch `main`, folder `/docs`.
 3. The site is live at `base_url` a minute later.
 
-The whole `docs/` folder is committed, including the images, so no CI is
-needed. Keep an eye on size: GitHub recommends staying under 1 GB per site.
-At the default settings a photo weighs roughly 1–3 MB.
+The whole `docs/` folder is committed, so no CI is needed. Keep an eye on
+size: GitHub recommends staying under 1 GB per site. At the default settings
+a photo weighs roughly 1–3 MB.
 
 ## Writing the NFC tags
 
-Any NTAG215 works (504 bytes of user memory; a URL record is ~50 bytes).
+Any NTAG215 works (504 bytes of user memory; these URLs are ~70 bytes).
 With the **NFC Tools** app (iOS/Android): *Write → Add a record → URL/URI*,
-paste the URL printed by `add` (or shown by `list`), then *Write*. Consider
-locking the tag afterwards so it cannot be rewritten.
+paste the URL printed by `add` (or shown by `list`), then *Write*. Lock the
+tag afterwards so it cannot be rewritten.
 
 Phones open the URL directly when the card is tapped; no app is required.
+The page needs HTTPS (GitHub Pages) or `localhost` for WebCrypto, so
+previewing works through `./photos.py serve` but not by opening the HTML
+file directly.
 
 ## Privacy notes
 
 - GitHub Pages sites are public. Pages carry `noindex` by default
-  (`allow_search_engines` in `site.json`), which keeps search engines away
-  but does not stop anyone who has the link.
-- Published images have EXIF removed, so no GPS or device data leaks through
-  the files. Coordinates live only in `data/photos.json` and the map link;
-  use `--no-coords` for places you would rather not pin.
+  (`allow_search_engines` in `site.json`).
+- Published images have EXIF removed and are encrypted; the plaintext exists
+  only in `data/` on your machine and in the browsers that unlocked them.
