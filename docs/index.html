@@ -15,33 +15,15 @@
 <header class="site-header">
   <h1>Our Photos</h1>
   <p class="subtitle">Moments, one card at a time.</p>
-  <div class="progress" data-progress>
-    <span class="progress-text">0 of 1 unlocked</span>
-    <span class="progress-bar" aria-hidden="true"><span class="progress-fill"></span></span>
-  </div>
 </header>
 
 <main>
-  <ul class="grid">
-    <li class="tile" data-id="dwn6xg" data-meta="kpbHiuv7bU8f6RL91g88n5aq-781lEvP1EQMPMTrca5SOvaiZK-hlzRxCrP3W3sSSJaq2lEtlMDWt62BLPVahTmzWX841CxX2GjaVozVx-bIxk9gmb2G9eJJoiEL8XYjrPisH6snzO-_dPW-D9EO0qW8ZkjPDfJSWue0HNAC4mcWQkVamFNv_doJoBD11gzlepcMQ9ZGOoeWDYnXuyxFt7hstIUiocA2vD-WDJlk1TbJtCRRqnW97v6FT9sI52JfMiKEoKLWOq6odfxuheiGG_68mSohgMRuBdMeD005LMZ2eKYXgofn1qbgQ6pRl9wNbVRQDAiNfTQhpEt2XLxBRqf1CInmsFcO4cj62ffOxlw" data-thumb="img/dwn6xg-t.enc">
-      <a href="p/dwn6xg/">
-        <span class="tile-locked" aria-hidden="true">
-<svg class="lock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.75a4 4 0 0 1 8 0v2.75"/><circle cx="12" cy="15.5" r="1.1" fill="currentColor" stroke="none"/></svg>          <span class="tile-num">№ 1</span>
-        </span>
-        <span class="tile-caption">
-          <span class="tile-title">Locked</span>
-          <time hidden></time>
-        </span>
-      </a>
-    </li>
-  </ul>
-  <noscript><p class="notice">JavaScript is needed to unlock the photos.</p></noscript>
+  <div class="empty">
+    <p>No photos yet.</p>
+    <p class="hint"><code>Add one with ./photos.py add &lt;file&gt;</code></p>
+  </div>
 </main>
 
-<footer class="site-footer">
-  <p>1 photo</p>
-  <p class="dev-tools" hidden><button type="button" class="dev-reset" data-reset>Reset unlocks (localhost only)</button></p>
-</footer>
 <script type="application/json" id="i18n">{"all_found": "You found them all.", "back": "All photos", "dev_reset": "Reset unlocks (localhost only)", "empty": "No photos yet.", "empty_hint": "Add one with ./photos.py add \u003cfile\u003e", "locked": "Locked", "next": "Next", "no_crypto": "This browser can\u0027t unlock photos here (a secure HTTPS connection is needed).", "no_js": "JavaScript is needed to unlock the photos.", "not_found": "This photo isn\u0027t here.", "not_found_hint": "Maybe it moved. Have a look at the gallery instead.", "number": "\u2116 {n}", "of": "{n} of {total}", "open_full": "Open full size", "photo": "photo", "photos": "photos", "prev": "Previous", "progress": "{n} of {total} unlocked", "still_locked": "Still locked", "tap_hint": "Find its card and hold it to your phone.", "unlocked": "Unlocked", "wrong_card": "This card doesn\u0027t open this photo."}</script>
 <script src="app.js" defer></script>
 </body>
