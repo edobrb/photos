@@ -196,7 +196,10 @@ def new_id(taken: set[str]) -> str:
 def format_date(iso: str, lang: str) -> str:
     dt = datetime.fromisoformat(iso)
     months = MONTHS.get(lang, MONTHS["en"])
-    return f"{dt.day} {months[dt.month - 1]} {dt.year}"
+    text = f"{dt.day} {months[dt.month - 1]} {dt.year}"
+    if len(iso) > 10:  # date-only entries ("2024-03-02") carry no time
+        text += f", {dt:%H:%M}"
+    return text
 
 
 def sort_photos(photos: list[dict], order: str) -> list[dict]:
@@ -431,23 +434,26 @@ def cmd_add(args) -> None:
     if args.no_coords:
         coords = None
 
-    # --- date -----------------------------------------------------------------
+    # --- date (time kept only when actually known) ----------------------------
     if args.date:
         try:
             date = datetime.fromisoformat(args.date)
         except ValueError:
             die("--date must be ISO, e.g. 2026-06-14 or 2026-06-14T17:30")
+        has_time = len(args.date.strip()) > 10
     elif exif_date:
-        date = exif_date
+        date, has_time = exif_date, True
         print(f"  date from EXIF: {date:%Y-%m-%d %H:%M}")
     else:
-        fallback = datetime.fromtimestamp(src.stat().st_mtime).replace(second=0, microsecond=0)
+        fallback = datetime.fromtimestamp(src.stat().st_mtime)
         print("  no date in EXIF")
-        raw = ask("Date (YYYY-MM-DD)", fallback.strftime("%Y-%m-%d"), skip=args.yes)
+        raw = ask("Date (YYYY-MM-DD or YYYY-MM-DDTHH:MM)", fallback.strftime("%Y-%m-%d"), skip=args.yes)
         try:
             date = datetime.fromisoformat(raw)
         except ValueError:
             die(f"invalid date: {raw}")
+        has_time = len(raw.strip()) > 10
+    date_iso = date.replace(second=0, microsecond=0).isoformat() if has_time else date.date().isoformat()
 
     # --- place ----------------------------------------------------------------
     locality = None
@@ -491,7 +497,7 @@ def cmd_add(args) -> None:
         "key": key,
         "title": title,
         "description": description,
-        "date": date.replace(microsecond=0).isoformat(),
+        "date": date_iso,
         "place": place,
         "place_short": place_short,
         "lat": coords[0] if coords else None,

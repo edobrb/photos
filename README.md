@@ -4,8 +4,8 @@ A small static photo gallery for GitHub Pages, played as a collecting game.
 Every photo starts **locked**: the gallery shows numbered blank cards. Each
 printed card carries an NFC tag with that photo's URL; tapping it opens the
 photo, unlocks it, and the browser remembers it from then on. Each photo page
-shows the high-resolution image, a short text, and the place and date taken
-from EXIF.
+shows the high-resolution image, a short text, and the place, date and time
+taken from EXIF.
 
 ```
 photos.py            the tool: add / build / list / remove / serve

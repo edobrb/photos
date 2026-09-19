@@ -60,13 +60,27 @@
   }
 
   // ---- formatting --------------------------------------------------------
+  // "2026-06-14T17:32:00" or "2024-03-02" (date only), read as local time
+  function parseLocal(iso) {
+    var d = iso.slice(0, 10).split('-').map(Number);
+    var t = iso.length > 10 ? iso.slice(11, 16).split(':').map(Number) : [0, 0];
+    return new Date(d[0], d[1] - 1, d[2], t[0] || 0, t[1] || 0);
+  }
   function fmtDate(iso) {
     if (!iso) return '';
-    var p = iso.slice(0, 10).split('-').map(Number);
     try {
-      return new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'long', year: 'numeric' })
-        .format(new Date(p[0], p[1] - 1, p[2]));
+      return new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'long', year: 'numeric' }).format(parseLocal(iso));
     } catch (e) { return iso.slice(0, 10); }
+  }
+  function fmtTime(iso) {
+    if (!iso || iso.length <= 10) return '';  // date-only entries have no time to show
+    try {
+      return new Intl.DateTimeFormat(lang, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(parseLocal(iso));
+    } catch (e) { return iso.slice(11, 16); }
+  }
+  function fmtDateTime(iso) {
+    var time = fmtTime(iso);
+    return fmtDate(iso) + (time ? ' \u00b7 ' + time : '');
   }
   function mapUrl(lat, lon) {
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lat + ',' + lon);
@@ -220,7 +234,7 @@
       }
       place.hidden = false;
     }
-    if (meta.date) { time.dateTime = meta.date; time.textContent = fmtDate(meta.date); time.hidden = false; }
+    if (meta.date) { time.dateTime = meta.date; time.textContent = fmtDateTime(meta.date); time.hidden = false; }
     if (meta.place && meta.date) sep.hidden = false;
     if (meta.place || meta.date) metaEl.hidden = false;
 
