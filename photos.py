@@ -15,6 +15,7 @@ photos.py — manage the photo gallery.
   ./photos.py build                    regenerate docs/ from data/photos.json + templates/
   ./photos.py list                     show every photo with its NFC URL
   ./photos.py remove <id>              delete a photo and rebuild
+  ./photos.py clear                    delete ALL photos (keeps a backup of the manifest)
   ./photos.py serve                    preview docs/ at http://127.0.0.1:8000/
 
 Every photo is encrypted (AES-GCM) with its own random key. The key travels
@@ -559,6 +560,29 @@ def cmd_remove(args) -> None:
     print(f"Removed {args.id}")
 
 
+def cmd_clear(args) -> None:
+    photos = load_photos()
+    n = len(photos)
+    if not args.yes:
+        print(f"This deletes all {n} photo(s): manifest entries, keys, encrypted files and pages.")
+        print("Cards already written for them will stop working.")
+        if ask("Type 'yes' to confirm").lower() != "yes":
+            print("Aborted, nothing changed.")
+            return
+    backup = None
+    if photos:  # the keys are otherwise irrecoverable; keep a copy inside the private data/ folder
+        backup = DATA_FILE.with_name(f"photos-{datetime.now():%Y%m%d-%H%M%S}.bak.json")
+        shutil.copy2(DATA_FILE, backup)
+    for d in (IMG_DIR, PAGES_DIR):
+        if d.exists():
+            shutil.rmtree(d)
+    save_photos([])
+    build(photos=[])
+    print(f"Cleared {n} photo(s). docs/ has no photos; data/photos.json is empty.")
+    if backup:
+        print(f"Previous manifest saved to {backup.relative_to(ROOT)} (delete it when you are sure).")
+
+
 def cmd_serve(args) -> None:
     import functools
     import http.server
@@ -598,6 +622,10 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("remove", help="remove a photo by id")
     p.add_argument("id")
     p.set_defaults(func=cmd_remove)
+
+    p = sub.add_parser("clear", help="delete ALL photos, files and pages")
+    p.add_argument("-y", "--yes", action="store_true", help="do not ask for confirmation")
+    p.set_defaults(func=cmd_clear)
 
     p = sub.add_parser("serve", help="preview the site locally")
     p.add_argument("--port", type=int, default=8000)

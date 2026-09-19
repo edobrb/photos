@@ -94,6 +94,7 @@ not want a random one; ids never change once a tag is written.
 ./photos.py list             # every photo with its number and NFC URL
 ./photos.py build            # after editing templates/ or static/
 ./photos.py remove <id>      # delete manifest entry, files and page
+./photos.py clear            # delete everything; asks first, keeps data/photos-*.bak.json
 ./photos.py serve            # preview at http://127.0.0.1:8000/
 ```
 
