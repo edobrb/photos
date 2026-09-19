@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="{{ site.lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site.title }}{% endblock %}</title>
+  {% if not site.allow_search_engines %}
+  <meta name="robots" content="noindex, nofollow">
+  {% endif %}
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161513" media="(prefers-color-scheme: dark)">
+  {% block head %}{% endblock %}
+  <link rel="stylesheet" href="{{ root }}style.css">
+  <link rel="icon" href="{{ root }}favicon.svg" type="image/svg+xml">
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+{% block body %}{% endblock %}
+</body>
+</html>

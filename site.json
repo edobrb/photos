@@ -1,0 +1,11 @@
+{
+  "title": "Our Photos",
+  "subtitle": "Moments, one card at a time.",
+  "base_url": "https://edobrb.github.io/photos",
+  "lang": "en",
+  "order": "newest",
+  "allow_search_engines": false,
+  "large_px": 2560,
+  "thumb_px": 900,
+  "jpeg_quality": 85
+}

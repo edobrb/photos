@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block bodyclass %}gallery-page{% endblock %}
+{% block body %}
+<header class="site-header">
+  <h1>{{ site.title }}</h1>
+  {% if site.subtitle %}
+  <p class="subtitle">{{ site.subtitle }}</p>
+  {% endif %}
+</header>
+
+<main>
+  {% if photos %}
+  <ul class="grid">
+    {% for p in photos %}
+    <li class="tile">
+      <a href="p/{{ p.slug }}/">
+        <img src="{{ p.thumb }}"
+             width="{{ p.thumb_width }}" height="{{ p.thumb_height }}"
+             alt="{{ p.title or p.place or '' }}"
+             loading="lazy" decoding="async">
+        <span class="tile-caption">
+          {% if p.title or p.place %}
+          <span class="tile-title">{{ p.title or p.place_short or p.place }}</span>
+          {% endif %}
+          {% if p.date %}
+          <time datetime="{{ p.date }}">{{ p.date | fmtdate }}</time>
+          {% endif %}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <p>{{ t.empty }}</p>
+    <p class="hint"><code>{{ t.empty_hint }}</code></p>
+  </div>
+  {% endif %}
+</main>
+
+{% if photos %}
+<footer class="site-footer">
+  <p>{{ photos | length }} {{ t.photo if photos | length == 1 else t.photos }}</p>
+</footer>
+{% endif %}
+{% endblock %}

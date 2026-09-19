@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% set heading = photo.title or photo.place %}
+{% block title %}{{ heading ~ ' · ' if heading }}{{ site.title }}{% endblock %}
+{% block head %}
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ heading or site.title }}">
+  {% if photo.description %}
+  <meta property="og:description" content="{{ photo.description }}">
+  {% endif %}
+  {% if site.base_url %}
+  <meta property="og:image" content="{{ site.base_url }}/{{ photo.image }}">
+  <meta property="og:url" content="{{ site.base_url }}/p/{{ photo.slug }}/">
+  {% endif %}
+  <link rel="preload" as="image" href="{{ root }}{{ photo.image }}" fetchpriority="high">
+{% endblock %}
+{% block bodyclass %}photo-page{% endblock %}
+{% block body %}
+<nav class="topbar">
+  <a class="back" href="{{ root }}">&larr; {{ t.back }}</a>
+</nav>
+
+<main>
+  <figure class="photo">
+    <a class="photo-link" href="{{ root }}{{ photo.image }}" title="{{ t.open_full }}">
+      <img src="{{ root }}{{ photo.image }}"
+           width="{{ photo.image_width }}" height="{{ photo.image_height }}"
+           alt="{{ heading or '' }}"
+           decoding="async" fetchpriority="high">
+    </a>
+    <figcaption>
+      {% if photo.title %}
+      <h1>{{ photo.title }}</h1>
+      {% endif %}
+      {% if photo.description %}
+      <p class="description">{{ photo.description }}</p>
+      {% endif %}
+      {% if photo.place or photo.date %}
+      <p class="meta">
+        {% if photo.place %}
+        <span class="place">
+          {% if photo.lat is not none and photo.lon is not none %}
+          <a href="https://www.openstreetmap.org/?mlat={{ photo.lat }}&amp;mlon={{ photo.lon }}#map=14/{{ photo.lat }}/{{ photo.lon }}" rel="noopener">{{ photo.place }}</a>
+          {% else %}
+          {{ photo.place }}
+          {% endif %}
+        </span>
+        {% endif %}
+        {% if photo.place and photo.date %}
+        <span class="sep" aria-hidden="true">·</span>
+        {% endif %}
+        {% if photo.date %}
+        <time datetime="{{ photo.date }}">{{ photo.date | fmtdate }}</time>
+        {% endif %}
+      </p>
+      {% endif %}
+    </figcaption>
+  </figure>
+</main>
+
+{% if prev or next %}
+<nav class="pager">
+  {% if prev %}
+  <a href="../{{ prev.slug }}/" rel="prev"><span class="dir">&larr; {{ t.prev }}</span><span class="label">{{ prev.title or prev.place_short or prev.place or '' }}</span></a>
+  {% else %}
+  <span></span>
+  {% endif %}
+  {% if next %}
+  <a href="../{{ next.slug }}/" rel="next" class="next"><span class="dir">{{ t.next }} &rarr;</span><span class="label">{{ next.title or next.place_short or next.place or '' }}</span></a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

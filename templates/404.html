@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}404 · {{ site.title }}{% endblock %}
+{% block bodyclass %}notfound-page{% endblock %}
+{% block body %}
+<main class="notfound">
+  <p class="big">404</p>
+  <h1>{{ t.not_found }}</h1>
+  <p>{{ t.not_found_hint }}</p>
+  <p><a class="button" href="{{ root }}">&larr; {{ t.back }}</a></p>
+</main>
+{% endblock %}
