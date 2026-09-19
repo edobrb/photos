@@ -6,6 +6,8 @@
 
   var STORE_KEY = 'photos.unlocked';
   var lang = document.documentElement.lang || 'en';
+  // developer conveniences (reset button, #reset) exist only on a local preview
+  var isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   var i18n = {};
   try { i18n = JSON.parse(document.getElementById('i18n').textContent); } catch (e) { /* defaults below */ }
 
@@ -67,7 +69,7 @@
     } catch (e) { return iso.slice(0, 10); }
   }
   function mapUrl(lat, lon) {
-    return 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=14/' + lat + '/' + lon;
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lat + ',' + lon);
   }
   function countUnlocked(store, ids) {
     return ids.filter(function (id) { return Boolean(store[id]); }).length;
@@ -80,14 +82,21 @@
   }
 
   function gallery() {
-    if (location.hash === '#reset') {
-      saveStore({});
-      history.replaceState(null, '', location.pathname + location.search);
+    if (isLocal) {
+      if (location.hash === '#reset') {
+        saveStore({});
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+      // typing #reset into the address bar while already on the gallery does not reload the page
+      window.addEventListener('hashchange', function () {
+        if (location.hash === '#reset') resetAll();
+      });
+      var devTools = document.querySelector('.dev-tools');
+      if (devTools) {
+        devTools.hidden = false;
+        devTools.querySelector('[data-reset]').addEventListener('click', resetAll);
+      }
     }
-    // typing #reset into the address bar while already on the gallery does not reload the page
-    window.addEventListener('hashchange', function () {
-      if (location.hash === '#reset') resetAll();
-    });
     var store = loadStore();
     var tiles = Array.prototype.slice.call(document.querySelectorAll('.tile[data-id]'));
     var total = tiles.length;

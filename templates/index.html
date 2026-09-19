@@ -44,6 +44,7 @@
 {% if tiles %}
 <footer class="site-footer">
   <p>{{ total }} {{ t.photo if total == 1 else t.photos }}</p>
+  <p class="dev-tools" hidden><button type="button" class="dev-reset" data-reset>{{ t.dev_reset }}</button></p>
 </footer>
 {% endif %}
 {% endblock %}

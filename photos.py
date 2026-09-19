@@ -114,6 +114,7 @@ STRINGS = {
         "of": "{n} of {total}",
         "no_js": "JavaScript is needed to unlock the photos.",
         "no_crypto": "This browser can't unlock photos here (a secure HTTPS connection is needed).",
+        "dev_reset": "Reset unlocks (localhost only)",
     },
     "it": {
         "back": "Tutte le foto",
@@ -137,6 +138,7 @@ STRINGS = {
         "of": "{n} di {total}",
         "no_js": "Serve JavaScript per sbloccare le foto.",
         "no_crypto": "Questo browser non può sbloccare le foto qui (serve una connessione HTTPS).",
+        "dev_reset": "Azzera gli sblocchi (solo localhost)",
     },
 }
 

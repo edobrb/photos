@@ -35,8 +35,9 @@ address bar. The gallery reads the same storage and shows a progress line,
 Consequences worth knowing:
 
 - Unlocks live in one browser on one device. A different phone starts over.
-- `docs/index.html#reset` locks everything again on that browser. Handy
-  for testing.
+- On a local preview (`./photos.py serve`) the gallery footer shows a
+  *Reset unlocks* button, and `#reset` on the gallery URL does the same.
+  Neither exists on the published site.
 - `data/photos.json` is the only plaintext copy and holds the keys. It is
   git-ignored; **back it up** (iCloud, a private repo, anywhere private).
   If it is ever lost, the URLs on the cards still contain the keys.
@@ -84,7 +85,7 @@ Every prompt has a flag, so this works non-interactively too:
 ```
 
 `--no-coords` keeps the place name but drops the coordinates (which power
-the small map link under the photo). `--id` sets a custom URL id if you do
+the Google Maps link under the photo). `--id` sets a custom URL id if you do
 not want a random one; ids never change once a tag is written.
 
 ## Other commands
