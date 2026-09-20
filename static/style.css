@@ -8,7 +8,7 @@
   --fg: #1d1b18;
   --muted: #7c756b;
   --rule: #e4dfd6;
-  --accent: #b5533c;
+  --accent: #5f7138;
   --shadow: 0 1px 2px rgb(30 25 15 / 0.08), 0 12px 32px -12px rgb(30 25 15 / 0.25);
 
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
@@ -25,7 +25,7 @@
     --fg: #ece7df;
     --muted: #978f83;
     --rule: #2c2925;
-    --accent: #dd8b73;
+    --accent: #94aa5c;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -12px rgb(0 0 0 / 0.6);
   }
 }
