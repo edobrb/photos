@@ -95,13 +95,26 @@ not want a random one; ids never change once a tag is written.
 ./photos.py build            # after editing templates/ or static/
 ./photos.py remove <id>      # delete manifest entry, files and page
 ./photos.py clear            # delete everything; asks first, keeps data/photos-*.bak.json
+./photos.py move <id> 3      # put a photo third (also 'first' / 'last')
 ./photos.py serve            # preview at http://127.0.0.1:8000/
 ```
 
 `data/photos.json` is plain JSON: fix a typo in a description there and run
-`build`. The gallery order follows `order` in `site.json` (`newest` or
-`oldest` by date), which is also the numbering — a locked card's position
-between two unlocked ones is the only hint the game gives away.
+`build`.
+
+## Ordering
+
+The gallery order is also the numbering on the cards (№ 1, № 2, …).
+`order` in `site.json` chooses it:
+
+- `newest` (default) or `oldest`: sorted by the photo's date.
+- `manual`: the order of the entries in `data/photos.json`. Rearrange with
+  `./photos.py move <id> <position>`, or cut and paste entries in the file
+  and run `build`. New photos are appended, so they become the last number.
+
+Reordering only renumbers; ids and keys stay the same, so cards already
+written keep working. A locked card's position between two unlocked ones is
+the only hint the game gives away.
 
 ## Publishing
 

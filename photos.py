@@ -16,6 +16,7 @@ photos.py — manage the photo gallery.
   ./photos.py list                     show every photo with its NFC URL
   ./photos.py remove <id>              delete a photo and rebuild
   ./photos.py clear                    delete ALL photos (keeps a backup of the manifest)
+  ./photos.py move <id> <position>     reorder (used when site.json has "order": "manual")
   ./photos.py serve                    preview docs/ at http://127.0.0.1:8000/
 
 Every photo is encrypted (AES-GCM) with its own random key. The key travels
@@ -78,7 +79,7 @@ SITE_DEFAULTS = {
     "subtitle": "",
     "base_url": "",
     "lang": "en",
-    "order": "newest",  # or "oldest"
+    "order": "newest",  # "newest" | "oldest" (by date) | "manual" (order of data/photos.json)
     "allow_search_engines": False,
     "large_px": 2560,
     "thumb_px": 900,
@@ -204,6 +205,8 @@ def format_date(iso: str, lang: str) -> str:
 
 
 def sort_photos(photos: list[dict], order: str) -> list[dict]:
+    if order == "manual":  # the order of entries in data/photos.json
+        return list(photos)
     key = lambda p: (p.get("date") or "", p.get("added") or "")  # noqa: E731
     return sorted(photos, key=key, reverse=(order != "oldest"))
 
@@ -560,6 +563,36 @@ def cmd_remove(args) -> None:
     print(f"Removed {args.id}")
 
 
+def cmd_move(args) -> None:
+    site = load_site()
+    photos = load_photos()
+    ids = [p["id"] for p in photos]
+    if args.id not in ids:
+        die(f"no photo with id {args.id!r}")
+    n = len(photos)
+    if args.position == "first":
+        pos = 1
+    elif args.position == "last":
+        pos = n
+    else:
+        try:
+            pos = int(args.position)
+        except ValueError:
+            die("position must be a number, 'first' or 'last'")
+    pos = min(max(pos, 1), n)
+    entry = photos.pop(ids.index(args.id))
+    photos.insert(pos - 1, entry)
+    save_photos(photos)
+    build(site, photos)
+    for i, p in enumerate(photos, 1):
+        marker = "→" if p["id"] == args.id else " "
+        print(f"{marker} № {i:<3} {p['id']}  {p.get('title') or p.get('place_short') or '—'}")
+    if site["order"] != "manual":
+        print()
+        print(f'Note: site.json has "order": "{site["order"]}", so the gallery is still sorted by date.')
+        print('Set "order": "manual" and run ./photos.py build to use this order.')
+
+
 def cmd_clear(args) -> None:
     photos = load_photos()
     n = len(photos)
@@ -622,6 +655,11 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("remove", help="remove a photo by id")
     p.add_argument("id")
     p.set_defaults(func=cmd_remove)
+
+    p = sub.add_parser("move", help="move a photo to a position (manual order)")
+    p.add_argument("id")
+    p.add_argument("position", help="1-based position, or 'first' / 'last'")
+    p.set_defaults(func=cmd_move)
 
     p = sub.add_parser("clear", help="delete ALL photos, files and pages")
     p.add_argument("-y", "--yes", action="store_true", help="do not ask for confirmation")
