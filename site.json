@@ -1,8 +1,8 @@
 {
-  "title": "Our Photos",
-  "subtitle": "Moments, one card at a time.",
+  "title": "fotine",
+  "subtitle": "",
   "base_url": "https://edobrb.github.io/photos",
-  "lang": "en",
+  "lang": "it",
   "order": "newest",
   "allow_search_engines": false,
   "large_px": 2560,

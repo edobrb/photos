@@ -120,8 +120,7 @@
     var progress = document.querySelector('[data-progress]');
     function setProgress() {
       if (!progress) return;
-      progress.querySelector('.progress-text').textContent =
-        (total > 0 && count === total) ? t('all_found') : t('progress', { n: count, total: total });
+      progress.querySelector('.progress-text').textContent = t('progress', { n: count, total: total });
       progress.querySelector('.progress-fill').style.width = total ? (100 * count / total) + '%' : '0';
       progress.classList.toggle('is-complete', total > 0 && count === total);
     }
@@ -260,7 +259,7 @@
     var strong = document.createElement('strong');
     strong.textContent = t('unlocked') + ' · ' + t('number', { n: n });
     var span = document.createElement('span');
-    span.textContent = count === total ? t('all_found') : t('of', { n: count, total: total });
+    span.textContent = t('of', { n: count, total: total });
     el.appendChild(strong); el.appendChild(span);
     document.body.appendChild(el);
     void el.offsetWidth;  // flush styles so the transition runs (rAF may be paused in hidden windows)

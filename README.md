@@ -30,7 +30,7 @@ https://edobrb.github.io/photos/p/k7m2xq/#k=Xy9…22 chars…
 The fragment never reaches the server. The page decrypts with WebCrypto,
 stores the key in `localStorage` (`photos.unlocked`), and strips it from the
 address bar. The gallery reads the same storage and shows a progress line,
-"3 of 12 unlocked". Everything public is opaque: random ids, blobs, a count.
+"3/12". Everything public is opaque: random ids, blobs, a count.
 
 Consequences worth knowing:
 

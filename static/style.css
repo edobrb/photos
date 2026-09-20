@@ -92,8 +92,7 @@ main { flex: 1; }
 
 .tile img {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  height: auto;  /* the photo's own aspect ratio; locked cards stay 4:3 */
   border-radius: 6px;
   background: var(--rule);
   box-shadow: var(--shadow);
@@ -286,7 +285,7 @@ main { flex: 1; }
   background: var(--accent);
   transition: width 600ms cubic-bezier(.2,.7,.2,1);
 }
-.progress.is-complete .progress-text { color: var(--accent); font-family: var(--serif); font-style: italic; font-size: 1rem; }
+.progress.is-complete .progress-text { color: var(--accent); }
 
 .lock { width: 1.6rem; height: 1.6rem; opacity: 0.55; }
 

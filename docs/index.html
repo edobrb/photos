@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Our Photos</title>
+  <title>fotine</title>
   <meta name="robots" content="noindex, nofollow">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)">
@@ -13,18 +13,35 @@
 </head>
 <body class="gallery-page">
 <header class="site-header">
-  <h1>Our Photos</h1>
-  <p class="subtitle">Moments, one card at a time.</p>
+  <h1>fotine</h1>
+  <div class="progress" data-progress>
+    <span class="progress-text">0/1</span>
+    <span class="progress-bar" aria-hidden="true"><span class="progress-fill"></span></span>
+  </div>
 </header>
 
 <main>
-  <div class="empty">
-    <p>No photos yet.</p>
-    <p class="hint"><code>Add one with ./photos.py add &lt;file&gt;</code></p>
-  </div>
+  <ul class="grid">
+    <li class="tile" data-id="7rjq4h" data-meta="U4ONbaMOaDMqkbygo77c3uGz7kg5qEFl61VHHMq815_P707Uf_QmNdrxCcY_ZcpnP4UE2endOcBt7DOAgMvtHQQEzbPtc9mETsxUdI-ZqkWX-s0ulUTf3g41LbBl04CdGRsOWjK7MvghMxldrpSVbulgeA2nVt8ir_c1scCL8u8e8rb6EMJkgR4cijLLrf7tAc9XwK3VRj-XpC3sB3GotARQWrtIIwV9Y_a1EJjtld_1BaHopDX_h4G1WcVaDUX-t9aGZa81syRb1vxgUZ88lPoQDAqlKOTef_SPbifIsU9zRcZabKWKOmTl-6OLvFXo-ZE__btfhEN06IXI74gsM-berZ7WqFancBBmWOA4WFgH" data-thumb="img/7rjq4h-t.enc">
+      <a href="p/7rjq4h/">
+        <span class="tile-locked" aria-hidden="true">
+<svg class="lock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.75a4 4 0 0 1 8 0v2.75"/><circle cx="12" cy="15.5" r="1.1" fill="currentColor" stroke="none"/></svg>          <span class="tile-num">№ 1</span>
+        </span>
+        <span class="tile-caption">
+          <span class="tile-title">Bloccata</span>
+          <time hidden></time>
+        </span>
+      </a>
+    </li>
+  </ul>
+  <noscript><p class="notice">Serve JavaScript per sbloccare le foto.</p></noscript>
 </main>
 
-<script type="application/json" id="i18n">{"all_found": "You found them all.", "back": "All photos", "dev_reset": "Reset unlocks (localhost only)", "empty": "No photos yet.", "empty_hint": "Add one with ./photos.py add \u003cfile\u003e", "locked": "Locked", "next": "Next", "no_crypto": "This browser can\u0027t unlock photos here (a secure HTTPS connection is needed).", "no_js": "JavaScript is needed to unlock the photos.", "not_found": "This photo isn\u0027t here.", "not_found_hint": "Maybe it moved. Have a look at the gallery instead.", "number": "\u2116 {n}", "of": "{n} of {total}", "open_full": "Open full size", "photo": "photo", "photos": "photos", "prev": "Previous", "progress": "{n} of {total} unlocked", "still_locked": "Still locked", "tap_hint": "Find its card and hold it to your phone.", "unlocked": "Unlocked", "wrong_card": "This card doesn\u0027t open this photo."}</script>
+<footer class="site-footer">
+  <p>1 foto</p>
+  <p class="dev-tools" hidden><button type="button" class="dev-reset" data-reset>Azzera gli sblocchi (solo localhost)</button></p>
+</footer>
+<script type="application/json" id="i18n">{"back": "Tutte le foto", "dev_reset": "Azzera gli sblocchi (solo localhost)", "empty": "Ancora nessuna foto.", "empty_hint": "Aggiungine una con ./photos.py add \u003cfile\u003e", "locked": "Bloccata", "next": "Successiva", "no_crypto": "Questo browser non pu\u00f2 sbloccare le foto qui (serve una connessione HTTPS).", "no_js": "Serve JavaScript per sbloccare le foto.", "not_found": "Questa foto non \u00e8 qui.", "not_found_hint": "Forse \u00e8 stata spostata. Dai un\u0027occhiata alla galleria.", "number": "\u2116 {n}", "of": "{n}/{total}", "open_full": "Apri a piena risoluzione", "photo": "foto", "photos": "foto", "prev": "Precedente", "progress": "{n}/{total}", "still_locked": "Ancora bloccata", "tap_hint": "Trova la sua carta e avvicinala al telefono.", "unlocked": "Sbloccata", "wrong_card": "Questa carta non apre questa foto."}</script>
 <script src="app.js" defer></script>
 </body>
 </html>
