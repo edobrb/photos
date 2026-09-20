@@ -84,9 +84,12 @@ Every prompt has a flag, so this works non-interactively too:
   --place "Florence, Italy" --date 2025-12-24 --yes
 ```
 
-`--no-coords` keeps the place name but drops the coordinates (which power
-the Google Maps link under the photo). `--id` sets a custom URL id if you do
-not want a random one; ids never change once a tag is written.
+`--coords LAT,LON` sets the coordinates in decimal degrees when the file has
+no GPS (a photo received via WhatsApp, a scan, …) or the EXIF is wrong; the
+place name is then looked up from them as usual. `--no-coords` keeps the place
+name but drops the coordinates (which power the Google Maps link under the
+photo). `--id` sets a custom URL id if you do not want a random one; ids
+never change once a tag is written.
 
 ## Other commands
 

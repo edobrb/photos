@@ -292,6 +292,20 @@ def read_exif(img: Image.Image) -> tuple[datetime | None, tuple[float, float] | 
     return date, coords
 
 
+def parse_coords(raw: str) -> tuple[float, float]:
+    """Parse "LAT,LON" (decimal degrees) as given to --coords."""
+    parts = raw.split(",")
+    if len(parts) != 2:
+        die("--coords must be LAT,LON in decimal degrees, e.g. 45.4642,9.19")
+    try:
+        lat, lon = (float(x.strip()) for x in parts)
+    except ValueError:
+        die("--coords must be LAT,LON in decimal degrees, e.g. 45.4642,9.19")
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        die("--coords out of range: latitude ±90, longitude ±180")
+    return round(lat, 5), round(lon, 5)
+
+
 def reverse_geocode(lat: float, lon: float, lang: str) -> tuple[str, str] | None:
     """Return (full place string, short locality) via OpenStreetMap Nominatim."""
     query = urllib.parse.urlencode({
@@ -435,7 +449,13 @@ def cmd_add(args) -> None:
         die(f"cannot open image: {exc}")
 
     exif_date, coords = read_exif(img)
-    if args.no_coords:
+    coords_from = "EXIF"
+    if args.coords:
+        if args.no_coords:
+            die("--coords and --no-coords cannot be used together")
+        coords = parse_coords(args.coords)
+        coords_from = "--coords"
+    elif args.no_coords:
         coords = None
 
     # --- date (time kept only when actually known) ----------------------------
@@ -465,7 +485,7 @@ def cmd_add(args) -> None:
     if place is None:
         suggestion = None
         if coords:
-            print(f"  GPS from EXIF: {coords[0]:.4f}, {coords[1]:.4f} — looking up place name …")
+            print(f"  GPS from {coords_from}: {coords[0]:.4f}, {coords[1]:.4f} — looking up place name …")
             geo = reverse_geocode(coords[0], coords[1], site["lang"])
             if geo:
                 suggestion, locality = geo
@@ -642,6 +662,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--place", help="override the place name (skips geocoding)")
     p.add_argument("--date", help="override the date, ISO format")
     p.add_argument("--id", help="URL id (default: random, so the URL reveals nothing)")
+    p.add_argument("--coords", metavar="LAT,LON",
+                   help="set GPS coordinates in decimal degrees (overrides EXIF)")
     p.add_argument("--no-coords", action="store_true", help="do not store GPS coordinates")
     p.add_argument("-y", "--yes", action="store_true", help="never prompt; accept defaults")
     p.set_defaults(func=cmd_add)
