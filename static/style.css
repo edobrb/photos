@@ -258,6 +258,23 @@ main { flex: 1; }
   .photo { padding-left: 0; padding-right: 0; }
   .photo img { border-radius: 0; box-shadow: none; max-height: none; }
   .photo figcaption { padding: 0 var(--gutter); }
+
+  /* two photos per row: the 280px track floor never fits twice on a phone */
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem 0.75rem;
+  }
+  .tile-caption {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+  }
+  .tile-title { font-size: 0.95rem; }
+  .tile:not(.is-unlocked) .tile-title { font-size: 0.82rem; }
+  .lock { width: 1.25rem; height: 1.25rem; }
+  .tile-num { font-size: 0.85rem; }
 }
 
 /* ---------------- the game: locked / unlocked ---------------- */
