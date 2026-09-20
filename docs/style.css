@@ -264,6 +264,14 @@ main { flex: 1; }
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem 0.75rem;
   }
+  /* masonry: app.js gives each tile a row span, so mixed aspect ratios stagger
+     instead of aligning to the tallest tile in the row. The 24px row gap lives
+     inside those spans; UNIT/GAP in app.js must match these two values. */
+  .grid.is-masonry {
+    grid-auto-rows: 4px;
+    row-gap: 0;
+    align-items: start;
+  }
   .tile-caption {
     flex-direction: column;
     align-items: flex-start;

@@ -125,6 +125,7 @@
       progress.classList.toggle('is-complete', total > 0 && count === total);
     }
     setProgress();
+    masonry(document.querySelector('.grid'), tiles);
     if (!window.crypto || !crypto.subtle) return;
 
     tiles.forEach(function (tile) {
@@ -155,6 +156,41 @@
     var time = tile.querySelector('time');
     if (meta.date && time) { time.dateTime = meta.date; time.textContent = fmtDate(meta.date); time.hidden = false; }
     tile.classList.add('is-unlocked');
+  }
+
+  /* On phones the grid is two columns wide, and photos keep their own aspect
+     ratio — so a plain grid would align every row to its tallest tile and leave
+     holes. Give each tile a row span proportional to its height instead, and the
+     two columns stagger. Heights arrive late (a thumbnail is decrypted, then
+     decoded), hence the ResizeObserver. */
+  function masonry(grid, tiles) {
+    if (!grid || !window.ResizeObserver || !window.matchMedia) return;
+    var UNIT = 4, GAP = 24;  // keep in sync with .grid.is-masonry in style.css
+    var narrow = window.matchMedia('(max-width: 640px)');
+
+    function layout() {
+      if (!narrow.matches) {
+        grid.classList.remove('is-masonry');
+        tiles.forEach(function (tile) {
+          tile.style.gridRowEnd = '';
+          delete tile.dataset.span;
+        });
+        return;
+      }
+      grid.classList.add('is-masonry');  // align-items: start, or tiles stretch and grow without bound
+      tiles.forEach(function (tile) {
+        var span = Math.ceil((tile.getBoundingClientRect().height + GAP) / UNIT);
+        if (tile.dataset.span === String(span)) return;
+        tile.dataset.span = span;
+        tile.style.gridRowEnd = 'span ' + span;
+      });
+    }
+
+    var ro = new ResizeObserver(layout);
+    tiles.forEach(function (tile) { ro.observe(tile); });
+    if (narrow.addEventListener) narrow.addEventListener('change', layout);
+    else narrow.addListener(layout);  // Safari < 14
+    layout();
   }
 
   // ---- single photo ------------------------------------------------------
