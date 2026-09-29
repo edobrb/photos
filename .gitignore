@@ -5,3 +5,5 @@ __pycache__/
 
 # plaintext + encryption keys — private, back it up outside git
 data/
+config.bat
+node_modules

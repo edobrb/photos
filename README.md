@@ -100,12 +100,11 @@ start/stop button and a thin progress line you can tap to jump.
 
 ```sh
 ./photos.py music <id> "Il cielo in una stanza.mp3"   # attach, or replace
-./photos.py music <id> song.m4a --title "Our song"    # name shown by the player
 ./photos.py music <id> --remove                       # detach
 ./photos.py add IMG_1234.HEIC --music song.mp3        # or right when adding
 ```
 
-mp3, m4a, aac, wav and flac work; the title defaults to the file name. Phones
+mp3, m4a, aac, wav and flac work. Phones
 don't let a page start sound on its own, so the song starts with the first tap
 anywhere on the page (a pulsing ring on the button hints at it). Once someone
 stops a song, songs no longer start by themselves on that device until they

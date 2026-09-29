@@ -320,10 +320,8 @@
     var btn = player.querySelector('.player-toggle');
     var line = player.querySelector('.player-line');
     var fill = player.querySelector('.player-fill');
-    var title = meta.music_title ? ' · ' + meta.music_title : '';
     // shown right away so the caption doesn't jump; usable once the song is decrypted
-    player.querySelector('.player-title').textContent = meta.music_title || '';
-    btn.setAttribute('aria-label', t('music_play') + title);
+    btn.setAttribute('aria-label', t('music_play'));
     btn.disabled = true;
     player.hidden = false;
 
@@ -344,7 +342,7 @@
         var playing = !audio.paused;
         // 'play' fires as soon as playback is allowed; play()'s promise can lag behind by seconds
         if (playing) disarm();
-        var label = t(playing ? 'music_stop' : 'music_play') + title;
+        var label = t(playing ? 'music_stop' : 'music_play');
         player.classList.toggle('is-playing', playing);
         btn.setAttribute('aria-label', label);
         btn.title = label;
@@ -380,9 +378,6 @@
         audio.currentTime = audio.duration * Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
         progress();
       });
-      if ('mediaSession' in navigator && window.MediaMetadata && meta.music_title) {
-        navigator.mediaSession.metadata = new MediaMetadata({ title: meta.music_title });
-      }
       btn.disabled = false;
       sync();
       if (musicWanted()) {
