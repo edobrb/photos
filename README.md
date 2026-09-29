@@ -91,6 +91,30 @@ name but drops the coordinates (which power the Google Maps link under the
 photo). `--id` sets a custom URL id if you do not want a random one; ids
 never change once a tag is written.
 
+## Music
+
+A photo can have a song. It is encrypted with the photo's key like the image
+(under a random name in `docs/audio/`, so the repository doesn't show which
+photo has one) and played by a small player above the description: a
+start/stop button and a thin progress line you can tap to jump.
+
+```sh
+./photos.py music <id> "Il cielo in una stanza.mp3"   # attach, or replace
+./photos.py music <id> song.m4a --title "Our song"    # name shown by the player
+./photos.py music <id> --remove                       # detach
+./photos.py add IMG_1234.HEIC --music song.mp3        # or right when adding
+```
+
+mp3, m4a, aac, wav and flac work; the title defaults to the file name. Phones
+don't let a page start sound on its own, so the song starts with the first tap
+anywhere on the page (a pulsing ring on the button hints at it). Once someone
+stops a song, songs no longer start by themselves on that device until they
+press play again. The whole file downloads before it plays, so keep it small:
+a 128–192 kbps mp3 is plenty.
+
+Keep the source audio out of the repository (the plaintext would defeat the
+encryption); `data/` is a good place for it.
+
 ## Other commands
 
 ```sh

@@ -48,14 +48,14 @@
       return JSON.parse(new TextDecoder().decode(plain));
     });
   }
-  function decryptImage(key, url) {
+  function decryptFile(key, url, type) {
     return fetch(url).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
       return res.arrayBuffer();
     }).then(function (buf) {
       return decrypt(key, new Uint8Array(buf));
     }).then(function (plain) {
-      return URL.createObjectURL(new Blob([plain], { type: 'image/jpeg' }));
+      return URL.createObjectURL(new Blob([plain], { type: type }));
     });
   }
 
@@ -135,7 +135,7 @@
       importKey(k)
         .then(function (ck) { key = ck; return decryptMeta(key, tile.dataset.meta); })
         .then(function (meta) {
-          return decryptImage(key, tile.dataset.thumb).then(function (src) {
+          return decryptFile(key, tile.dataset.thumb, 'image/jpeg').then(function (src) {
             renderTile(tile, meta, src);
             count++;
             setProgress();
@@ -232,7 +232,7 @@
       if (hashKey) history.replaceState(null, '', location.pathname + location.search);
       showUnlocked(main, meta);
       if (isNew) toast(n, countUnlocked(store, ids), total);
-      decryptImage(key, main.dataset.image).then(function (src) {
+      var image = decryptFile(key, main.dataset.image, 'image/jpeg').then(function (src) {
         var img = main.querySelector('.photo img');
         var link = main.querySelector('.photo-link');
         img.src = src;
@@ -242,6 +242,8 @@
         console.error('[photos] image failed', err);
         main.querySelector('.photo').classList.add('image-failed');
       });
+      // the song is fetched once the photo is in, so it never slows the photo down
+      if (meta.music) music(key, main.dataset.root + meta.music, meta, image);
     }
     tryNext(0);
   }
@@ -286,6 +288,104 @@
     main.querySelector('.state-unlocked').hidden = true;
     card.hidden = false;
     document.body.classList.add('is-locked');
+  }
+
+  // ---- music -------------------------------------------------------------
+  /* A photo can carry a song, encrypted with the same key as the image, and
+     played by a small player above the description. Browsers refuse to start
+     sound before the viewer has touched the page, so when autoplay is blocked
+     the first tap anywhere starts it. Once the viewer stops a song, songs no
+     longer start by themselves on any photo until they press play again. */
+  var MUSIC_KEY = 'photos.music';
+
+  function musicWanted() {
+    try { return localStorage.getItem(MUSIC_KEY) !== 'off'; } catch (e) { return true; }
+  }
+  function setMusicWanted(on) {
+    try { localStorage.setItem(MUSIC_KEY, on ? 'on' : 'off'); } catch (e) { /* private mode etc. */ }
+  }
+
+  function music(key, url, meta, after) {
+    var player = document.querySelector('.player');
+    if (!player) return;
+    var btn = player.querySelector('.player-toggle');
+    var line = player.querySelector('.player-line');
+    var fill = player.querySelector('.player-fill');
+    var title = meta.music_title ? ' · ' + meta.music_title : '';
+    // shown right away so the caption doesn't jump; usable once the song is decrypted
+    player.querySelector('.player-title').textContent = meta.music_title || '';
+    btn.setAttribute('aria-label', t('music_play') + title);
+    btn.disabled = true;
+    player.hidden = false;
+
+    after.then(function () {
+      return decryptFile(key, url, meta.music_type || 'audio/mpeg');
+    }).then(function (src) {
+      var audio = new Audio(src);
+      var gestures = ['click', 'touchend', 'keydown'];
+      var frame = 0;
+
+      function progress() {
+        cancelAnimationFrame(frame);
+        var d = audio.duration;
+        fill.style.transform = 'scaleX(' + (d && !audio.ended ? audio.currentTime / d : 0) + ')';
+        if (!audio.paused) frame = requestAnimationFrame(progress);
+      }
+      function sync() {
+        var playing = !audio.paused;
+        // 'play' fires as soon as playback is allowed; play()'s promise can lag behind by seconds
+        if (playing) disarm();
+        var label = t(playing ? 'music_stop' : 'music_play') + title;
+        player.classList.toggle('is-playing', playing);
+        btn.setAttribute('aria-label', label);
+        btn.title = label;
+        progress();
+      }
+      function onGesture(e) {
+        if (btn.contains(e.target)) return;  // the button has its own handler
+        var a = e.target.closest && e.target.closest('a');
+        if (a && a.target !== '_blank') return;  // leaving the page: no blip of sound
+        audio.play().catch(function () { /* not a user activation (a scroll, Esc): wait for the next */ });
+      }
+      function arm() {
+        player.classList.add('is-waiting');
+        gestures.forEach(function (ev) { document.addEventListener(ev, onGesture, true); });
+      }
+      function disarm() {
+        player.classList.remove('is-waiting');
+        gestures.forEach(function (ev) { document.removeEventListener(ev, onGesture, true); });
+      }
+
+      ['play', 'pause', 'ended'].forEach(function (ev) { audio.addEventListener(ev, sync); });
+      ['seeked', 'durationchange'].forEach(function (ev) { audio.addEventListener(ev, progress); });
+      btn.addEventListener('click', function () {
+        disarm();
+        var on = audio.paused;
+        setMusicWanted(on);
+        if (on) audio.play().catch(function (err) { console.warn('[photos] music refused', err); });
+        else audio.pause();
+      });
+      line.addEventListener('click', function (e) {  // tap the line to jump
+        var r = line.getBoundingClientRect();
+        if (!audio.duration || !r.width) return;
+        audio.currentTime = audio.duration * Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+        progress();
+      });
+      if ('mediaSession' in navigator && window.MediaMetadata && meta.music_title) {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: meta.music_title });
+      }
+      btn.disabled = false;
+      sync();
+      if (musicWanted()) {
+        audio.play().catch(function (err) {
+          if (err.name === 'NotAllowedError') arm();
+          else console.warn('[photos] music refused', err);
+        });
+      }
+    }).catch(function (err) {
+      console.error('[photos] music failed', err);
+      player.hidden = true;
+    });
   }
 
   function toast(n, count, total) {

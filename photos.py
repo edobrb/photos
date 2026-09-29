@@ -17,6 +17,7 @@ photos.py — manage the photo gallery.
   ./photos.py remove <id>              delete a photo and rebuild
   ./photos.py clear                    delete ALL photos (keeps a backup of the manifest)
   ./photos.py move <id> <position>     reorder (used when site.json has "order": "manual")
+  ./photos.py music <id> song.mp3      attach a song to a photo (--remove to detach it)
   ./photos.py serve                    preview docs/ at http://127.0.0.1:8000/
 
 Every photo is encrypted (AES-GCM) with its own random key. The key travels
@@ -65,6 +66,7 @@ TEMPLATES = ROOT / "templates"
 STATIC = ROOT / "static"
 DOCS = ROOT / "docs"
 IMG_DIR = DOCS / "img"
+AUDIO_DIR = DOCS / "audio"
 PAGES_DIR = DOCS / "p"
 
 ID_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"  # no 0/o/1/l/i ambiguity
@@ -73,6 +75,12 @@ ID_LENGTH = 6
 # fields that are encrypted into the page; nothing else about a photo is public
 META_FIELDS = ("title", "description", "date", "place", "place_short", "lat", "lon",
                "image_width", "image_height", "thumb_width", "thumb_height")
+# added to the encrypted metadata only for photos that have a song
+MUSIC_FIELDS = ("music", "music_type", "music_title")
+
+# formats every current phone browser plays
+AUDIO_TYPES = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".aac": "audio/aac",
+               ".wav": "audio/wav", ".flac": "audio/flac"}
 
 SITE_DEFAULTS = {
     "title": "Our Photos",
@@ -116,6 +124,8 @@ STRINGS = {
         "no_js": "JavaScript is needed to unlock the photos.",
         "no_crypto": "This browser can't unlock photos here (a secure HTTPS connection is needed).",
         "dev_reset": "Reset unlocks (localhost only)",
+        "music_play": "Play music",
+        "music_stop": "Stop music",
     },
     "it": {
         "back": "Tutte le foto",
@@ -139,6 +149,8 @@ STRINGS = {
         "no_js": "Serve JavaScript per sbloccare le foto.",
         "no_crypto": "Questo browser non può sbloccare le foto qui (serve una connessione HTTPS).",
         "dev_reset": "Azzera gli sblocchi (solo localhost)",
+        "music_play": "Avvia la musica",
+        "music_stop": "Ferma la musica",
     },
 }
 
@@ -363,6 +375,44 @@ def make_derivatives(img: Image.Image, photo_id: str, key: str, site: dict) -> d
 
 
 # ----------------------------------------------------------------------------
+# music
+# ----------------------------------------------------------------------------
+
+def audio_type(src: Path) -> str:
+    """MIME type of a supported audio file; exits on anything else."""
+    if not src.is_file():
+        die(f"file not found: {src}")
+    mime = AUDIO_TYPES.get(src.suffix.lower())
+    if not mime:
+        die(f"unsupported audio format {src.suffix or '(none)'}: use {', '.join(AUDIO_TYPES)}")
+    return mime
+
+
+def detach_music(photo: dict) -> None:
+    if photo.get("music"):
+        f = DOCS / photo["music"]
+        if f.exists():
+            f.unlink()
+    for k in (*MUSIC_FIELDS, "music_source"):
+        photo.pop(k, None)
+
+
+def attach_music(photos: list[dict], photo: dict, src: Path, title: str | None) -> int:
+    """Encrypt src with the photo's key into docs/audio/ and record it on the
+    entry, replacing any previous song. Returns the size in bytes."""
+    mime = audio_type(src)
+    data = src.read_bytes()
+    detach_music(photo)
+    # a random file name, so the listing of docs/ doesn't tell which photo has music
+    taken = {Path(p["music"]).stem for p in photos if p.get("music")}
+    name = f"audio/{new_id(taken)}.enc"
+    AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+    (DOCS / name).write_bytes(encrypt(photo["key"], data))
+    photo.update(music=name, music_type=mime, music_title=title or src.stem, music_source=src.name)
+    return len(data)
+
+
+# ----------------------------------------------------------------------------
 # build
 # ----------------------------------------------------------------------------
 
@@ -380,6 +430,8 @@ def build(site: dict | None = None, photos: list[dict] | None = None) -> list[di
     tiles = []
     for i, photo in enumerate(ordered):
         meta = {k: photo.get(k) for k in META_FIELDS}
+        if photo.get("music"):
+            meta.update({k: photo.get(k) for k in MUSIC_FIELDS})
         blob = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         tiles.append({
             "id": photo["id"],
@@ -438,6 +490,10 @@ def cmd_add(args) -> None:
     src = Path(args.file).expanduser()
     if not src.is_file():
         die(f"file not found: {src}")
+    music_src = None
+    if args.music:
+        music_src = Path(args.music).expanduser()
+        audio_type(music_src)  # fail before any file is written
 
     print(f"Reading {src.name} …")
     try:
@@ -528,6 +584,9 @@ def cmd_add(args) -> None:
         "source": src.name,
         "added": datetime.now().replace(microsecond=0).isoformat(),
     }
+    if music_src:
+        print(f"  encrypting {music_src.name} …")
+        attach_music(photos, entry, music_src, None)
     photos.append(entry)
     save_photos(photos)
     build(site, photos)
@@ -538,6 +597,8 @@ def cmd_add(args) -> None:
     print(f"  place:       {place or '—'}")
     print(f"  date:        {format_date(entry['date'], site['lang'])}")
     print(f"  image:       docs/{derived['image']} ({derived['image_width']}×{derived['image_height']}, encrypted)")
+    if music_src:
+        print(f"  music:       {entry['music_title']} (docs/{entry['music']}, encrypted)")
     print(f"  page:        docs/p/{photo_id}/index.html")
     print()
     print(f"NFC URL →  {photo_url(site, entry)}")
@@ -561,7 +622,8 @@ def cmd_list(_args) -> None:
     for i, p in enumerate(photos, 1):
         date = format_date(p["date"], site["lang"]) if p.get("date") else "—"
         label = p.get("title") or p.get("place_short") or "—"
-        print(f"№ {i:<3} {p['id']}  {date:<18} {label}")
+        song = f"  ♪ {p.get('music_title') or ''}" if p.get("music") else ""
+        print(f"№ {i:<3} {p['id']}  {date:<18} {label}{song}")
         print(f"      {photo_url(site, p)}")
 
 
@@ -571,9 +633,9 @@ def cmd_remove(args) -> None:
     if not match:
         die(f"no photo with id {args.id!r}")
     photo = match[0]
-    for key in ("image", "thumb"):
-        f = DOCS / photo[key]
-        if f.exists():
+    for key in ("image", "thumb", "music"):
+        f = DOCS / photo[key] if photo.get(key) else None
+        if f and f.exists():
             f.unlink()
     photos = [p for p in photos if p["id"] != args.id]
     save_photos(photos)
@@ -611,6 +673,40 @@ def cmd_move(args) -> None:
         print('Set "order": "manual" and run ./photos.py build to use this order.')
 
 
+def cmd_music(args) -> None:
+    site = load_site()
+    photos = load_photos()
+    photo = next((p for p in photos if p["id"] == args.id), None)
+    if photo is None:
+        die(f"no photo with id {args.id!r}")
+
+    if args.remove:
+        if args.file:
+            die("give either an audio file or --remove, not both")
+        if not photo.get("music"):
+            print(f"{args.id} has no music, nothing changed.")
+            return
+        detach_music(photo)
+        save_photos(photos)
+        build(site, photos)
+        print(f"Removed the music from {args.id}")
+        return
+
+    if not args.file:
+        die("give an audio file to attach, or --remove")
+    src = Path(args.file).expanduser()
+    audio_type(src)
+    print(f"Encrypting {src.name} …")
+    size = attach_music(photos, photo, src, args.title)
+    save_photos(photos)
+    build(site, photos)
+    print(f"Added music to {args.id}")
+    print(f"  title:  {photo['music_title']}")
+    print(f"  file:   docs/{photo['music']} ({size / 1e6:.1f} MB, encrypted)")
+    if size > 10e6:
+        print("  (large: the whole file is downloaded before it plays; a 128–192 kbps mp3 is plenty)")
+
+
 def cmd_clear(args) -> None:
     photos = load_photos()
     n = len(photos)
@@ -624,7 +720,7 @@ def cmd_clear(args) -> None:
     if photos:  # the keys are otherwise irrecoverable; keep a copy inside the private data/ folder
         backup = DATA_FILE.with_name(f"photos-{datetime.now():%Y%m%d-%H%M%S}.bak.json")
         shutil.copy2(DATA_FILE, backup)
-    for d in (IMG_DIR, PAGES_DIR):
+    for d in (IMG_DIR, PAGES_DIR, AUDIO_DIR):
         if d.exists():
             shutil.rmtree(d)
     save_photos([])
@@ -663,6 +759,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--coords", metavar="LAT,LON",
                    help="set GPS coordinates in decimal degrees (overrides EXIF)")
     p.add_argument("--no-coords", action="store_true", help="do not store GPS coordinates")
+    p.add_argument("--music", metavar="FILE", help="a song that plays on the photo page (mp3, m4a, …)")
     p.add_argument("-y", "--yes", action="store_true", help="never prompt; accept defaults")
     p.set_defaults(func=cmd_add)
 
@@ -680,6 +777,13 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("id")
     p.add_argument("position", help="1-based position, or 'first' / 'last'")
     p.set_defaults(func=cmd_move)
+
+    p = sub.add_parser("music", help="attach a song to a photo, or --remove it")
+    p.add_argument("id")
+    p.add_argument("file", nargs="?", help="mp3 / m4a / aac / wav / flac")
+    p.add_argument("--title", help="song name shown by the player (default: the file name)")
+    p.add_argument("--remove", action="store_true", help="detach the song")
+    p.set_defaults(func=cmd_music)
 
     p = sub.add_parser("clear", help="delete ALL photos, files and pages")
     p.add_argument("-y", "--yes", action="store_true", help="do not ask for confirmation")
