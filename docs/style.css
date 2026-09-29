@@ -88,7 +88,7 @@ main { flex: 1; }
   gap: 2.25rem 1.5rem;
 }
 
-.tile a { display: block; }
+.tile a { display: block; position: relative; }
 
 .tile img {
   width: 100%;
@@ -100,8 +100,27 @@ main { flex: 1; }
 }
 
 @media (hover: hover) {
-  .tile a:hover img { transform: translateY(-3px); }
+  .tile a:hover img, .tile a:hover .tile-music { transform: translateY(-3px); }
 }
+
+/* the photo has a song: a small note in the corner of the thumbnail */
+.tile-music {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgb(20 18 15 / 0.45);
+  color: #fff;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  transition: transform 220ms ease;
+}
+.tile-music svg { width: 13px; height: 13px; }
 
 .tile-caption {
   display: flex;
@@ -280,6 +299,8 @@ main { flex: 1; }
     font-size: 0.8rem;
   }
   .tile-title { font-size: 0.95rem; }
+  .tile-music { top: 6px; right: 6px; width: 22px; height: 22px; }
+  .tile-music svg { width: 11px; height: 11px; }
   .tile:not(.is-unlocked) .tile-title { font-size: 0.82rem; }
   .lock { width: 1.25rem; height: 1.25rem; }
   .tile-num { font-size: 0.85rem; }

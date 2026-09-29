@@ -155,6 +155,15 @@
     tile.querySelector('.tile-title').textContent = meta.title || meta.place_short || meta.place || '';
     var time = tile.querySelector('time');
     if (meta.date && time) { time.dateTime = meta.date; time.textContent = fmtDate(meta.date); time.hidden = false; }
+    if (meta.music) {  // known only once unlocked: locked cards give nothing away
+      var badge = document.createElement('span');
+      badge.className = 'tile-music';
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', t('has_music'));
+      badge.title = t('has_music');
+      badge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+      tile.querySelector('a').appendChild(badge);
+    }
     tile.classList.add('is-unlocked');
   }
 

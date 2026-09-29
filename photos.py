@@ -126,6 +126,7 @@ STRINGS = {
         "dev_reset": "Reset unlocks (localhost only)",
         "music_play": "Play music",
         "music_stop": "Stop music",
+        "has_music": "With music",
     },
     "it": {
         "back": "Tutte le foto",
@@ -151,6 +152,7 @@ STRINGS = {
         "dev_reset": "Azzera gli sblocchi (solo localhost)",
         "music_play": "Avvia la musica",
         "music_stop": "Ferma la musica",
+        "has_music": "Con musica",
     },
 }
 
