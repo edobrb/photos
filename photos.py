@@ -76,7 +76,7 @@ ID_LENGTH = 6
 META_FIELDS = ("title", "description", "date", "place", "place_short", "lat", "lon",
                "image_width", "image_height", "thumb_width", "thumb_height")
 # added to the encrypted metadata only for photos that have a song
-MUSIC_FIELDS = ("music", "music_type", "music_title")
+MUSIC_FIELDS = ("music", "music_type")
 
 # formats every current phone browser plays
 AUDIO_TYPES = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".aac": "audio/aac",
@@ -395,11 +395,11 @@ def detach_music(photo: dict) -> None:
         f = DOCS / photo["music"]
         if f.exists():
             f.unlink()
-    for k in (*MUSIC_FIELDS, "music_source"):
+    for k in (*MUSIC_FIELDS, "music_title", "music_source"):
         photo.pop(k, None)
 
 
-def attach_music(photos: list[dict], photo: dict, src: Path, title: str | None) -> int:
+def attach_music(photos: list[dict], photo: dict, src: Path) -> int:
     """Encrypt src with the photo's key into docs/audio/ and record it on the
     entry, replacing any previous song. Returns the size in bytes."""
     mime = audio_type(src)
@@ -410,7 +410,8 @@ def attach_music(photos: list[dict], photo: dict, src: Path, title: str | None) 
     name = f"audio/{new_id(taken)}.enc"
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     (DOCS / name).write_bytes(encrypt(photo["key"], data))
-    photo.update(music=name, music_type=mime, music_title=title or src.stem, music_source=src.name)
+    # the title is only for `list`; the site doesn't show it
+    photo.update(music=name, music_type=mime, music_title=src.stem, music_source=src.name)
     return len(data)
 
 
@@ -588,7 +589,7 @@ def cmd_add(args) -> None:
     }
     if music_src:
         print(f"  encrypting {music_src.name} …")
-        attach_music(photos, entry, music_src, None)
+        attach_music(photos, entry, music_src)
     photos.append(entry)
     save_photos(photos)
     build(site, photos)
@@ -699,11 +700,11 @@ def cmd_music(args) -> None:
     src = Path(args.file).expanduser()
     audio_type(src)
     print(f"Encrypting {src.name} …")
-    size = attach_music(photos, photo, src, args.title)
+    size = attach_music(photos, photo, src)
     save_photos(photos)
     build(site, photos)
     print(f"Added music to {args.id}")
-    print(f"  title:  {photo['music_title']}")
+    print(f"  song:   {photo['music_title']}")
     print(f"  file:   docs/{photo['music']} ({size / 1e6:.1f} MB, encrypted)")
     if size > 10e6:
         print("  (large: the whole file is downloaded before it plays; a 128–192 kbps mp3 is plenty)")
@@ -783,7 +784,6 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("music", help="attach a song to a photo, or --remove it")
     p.add_argument("id")
     p.add_argument("file", nargs="?", help="mp3 / m4a / aac / wav / flac")
-    p.add_argument("--title", help="song name shown by the player (default: the file name)")
     p.add_argument("--remove", action="store_true", help="detach the song")
     p.set_defaults(func=cmd_music)
 
